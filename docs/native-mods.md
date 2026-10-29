@@ -108,6 +108,10 @@ a sound event's volume from its next play on, 0 mutes, none undoes it). What sou
 API 21 adds the helper `native_select_slot` (select hotbar slot 0 to 8 as a number key does; the server hears on the
 next tick; refused for a spectator). What an auto tool or a hotbar swap needs.
 
+API 22 adds the helper `native_click_slot` (click a slot of the open screen, numbered as `native_screen`'s `slots`,
+with vanilla's click type and button, as the mouse does; on a server the same `ContainerClick` goes out; refused where
+`native_screen` has no slots). What an inventory sorter or mouse tweaks need.
+
 ## What the launcher does
 
 In the window: install a native mod from the Mods page. The first one shows a notice once (the first build downloads

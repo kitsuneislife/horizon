@@ -74,6 +74,9 @@
 //! API 21 adds the helper `native_select_slot`, to pick the hotbar slot as a
 //! number key does: what an auto tool or a hotbar swap needs.
 //!
+//! API 22 adds the helper `native_click_slot`, to click a slot of the open
+//! screen as the mouse does: what an inventory sorter or mouse tweaks need.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -101,7 +104,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 21;
+pub(crate) const NATIVE_HOOKS_API: u32 = 22;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -1119,6 +1122,39 @@ impl Game<'_> {
         }
         self.selected = slot;
         Ok(())
+    }
+    /// Clicks slot `slot` of the open screen, numbered as `native_screen`'s
+    /// `slots`, as the player's mouse does: `mode` is vanilla's click type
+    /// (`PICKUP`, `QUICK_MOVE`, `SWAP`, `CLONE`, `THROW`, `QUICK_CRAFT`,
+    /// `PICKUP_ALL`) with its `button`. On a server it goes out as the same
+    /// `ContainerClick`. Refused with no inventory screen open, on a screen
+    /// Horizon's menu engine doesn't model and for a slot it doesn't have.
+    pub(super) fn native_click_slot(
+        &mut self,
+        slot: usize,
+        button: i32,
+        mode: &str,
+    ) -> Result<(), String> {
+        let Some(input) = horizon_client::menu::Input::parse(mode) else {
+            return Err("unknown click type".into());
+        };
+        if self.player.is_none() || self.screen != Screen::Inventory {
+            return Err("no inventory screen is open".into());
+        }
+        let mut game_slot = None;
+        self.menu_session(|_, _, to_menu| {
+            // Horizon's own slot ids stay under 1000.
+            game_slot = (0..1000).find(|&g| to_menu(g) == Some(slot));
+            Some(false)
+        });
+        let Some(game_slot) = game_slot else {
+            return Err("the open screen has no such slot".into());
+        };
+        if self.tweak_click(game_slot, button, input) {
+            Ok(())
+        } else {
+            Err("the screen took no click".into())
+        }
     }
 }
 
