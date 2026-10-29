@@ -672,6 +672,29 @@ impl Game<'_> {
     /// `Hud.extractTabList`: the player list while the player-list key is
     /// held. A local world shows it with a joined LAN guest or a `list`
     /// objective.
+    /// The player list's entries, whether it shows heads (online mode), and
+    /// the players drawn upside down.
+    pub(super) fn tab_players(&mut self) -> (Vec<TabPlayer>, bool, Vec<u128>) {
+        if let Some(remote) = self.remote_tab_players() {
+            return remote;
+        }
+        // The integrated server: the local player, online mode, no ping.
+        let uuid = self.level.player_uuid.map_or(0, |u| {
+            u.iter()
+                .fold(0u128, |a, &w| (a << 32) | u128::from(w as u32))
+        });
+        let mut me = TabPlayer::new(uuid, PLAYER_NAME);
+        me.game_mode = self.mode_id();
+        me.skin = "entity/player/wide/steve".into();
+        let guests = self.lan.as_ref().map_or(&[][..], |h| &h.hub.guests);
+        let players = local_tab_players(me, guests);
+        let upside_down = players
+            .iter()
+            .filter(|p| p.name == "Dinnerbone" || p.name == "Grumm")
+            .map(|p| p.uuid)
+            .collect();
+        (players, true, upside_down)
+    }
     pub(super) fn draw_tab_list(&mut self, batch: &mut HudBatch) {
         use horizon_client::tab_list::{self, TabInputs};
         // Player heads and the player list both draw from the same skin slots.
@@ -681,27 +704,7 @@ impl Game<'_> {
         }
         let key = self.screen == super::Screen::Playing
             && self.keys.contains(&winit::keyboard::KeyCode::Tab);
-        let (players, online_mode, upside_down) = match self.remote_tab_players() {
-            Some(remote) => remote,
-            None => {
-                // The integrated server: the local player, online mode, no ping.
-                let uuid = self.level.player_uuid.map_or(0, |u| {
-                    u.iter()
-                        .fold(0u128, |a, &w| (a << 32) | u128::from(w as u32))
-                });
-                let mut me = TabPlayer::new(uuid, PLAYER_NAME);
-                me.game_mode = self.mode_id();
-                me.skin = "entity/player/wide/steve".into();
-                let guests = self.lan.as_ref().map_or(&[][..], |h| &h.hub.guests);
-                let players = local_tab_players(me, guests);
-                let upside_down = players
-                    .iter()
-                    .filter(|p| p.name == "Dinnerbone" || p.name == "Grumm")
-                    .map(|p| p.uuid)
-                    .collect();
-                (players, true, upside_down)
-            }
-        };
+        let (players, online_mode, upside_down) = self.tab_players();
         let board = &self.score.board;
         let objective = board.display_objective(sb::SLOT_LIST);
         let shown = tab_list::visible(

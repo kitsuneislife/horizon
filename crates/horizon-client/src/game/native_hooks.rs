@@ -36,6 +36,9 @@
 //! API 10 adds the mobs and other players near the player
 //! (`native_entities`): what a radar or a mob minimap reads.
 //!
+//! API 11 adds the player list (`native_players`): what a better tab list
+//! or a friends list reads.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -52,6 +55,7 @@ use horizon_client::{
     items::ItemStack,
     keybinds,
     mod_list::{self, Installed, NativePage},
+    tab_list::{self, TabPlayer},
     text::Text,
 };
 use std::{fs, path::PathBuf, sync::Arc, time::Duration};
@@ -60,7 +64,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 10;
+pub(crate) const NATIVE_HOOKS_API: u32 = 11;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -207,6 +211,22 @@ pub(crate) struct NativeEntity {
     pub(crate) name: Option<String>,
     /// Health and max health.
     pub(crate) health: [f32; 2],
+}
+
+/// An entry of the player list (`native_players`), as Tab shows it.
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct NativeListPlayer {
+    pub(crate) uuid: u128,
+    /// The profile name.
+    pub(crate) name: String,
+    /// The name as the list draws it: the server's display name, else the
+    /// profile name with its team's prefix and suffix.
+    pub(crate) display: String,
+    /// `survival`, `creative`, `adventure`, `spectator`.
+    pub(crate) mode: &'static str,
+    /// Milliseconds; negative when unknown.
+    pub(crate) latency: i32,
 }
 
 /// The world's clock and weather (`native_time`), as the server sent them.
@@ -674,6 +694,23 @@ impl Game<'_> {
             .collect();
         list.sort_by(|a, b| distance(a).total_cmp(&distance(b)));
         list
+    }
+    /// The player list, the player included, in the server's order; none
+    /// outside a world.
+    pub(super) fn native_players(&mut self) -> Vec<NativeListPlayer> {
+        if self.player.is_none() {
+            return Vec::new();
+        }
+        let players = self.tab_players().0;
+        let board = &self.score.board;
+        let entry = |p: TabPlayer| NativeListPlayer {
+            uuid: p.uuid,
+            display: tab_list::name_for_display(&p, board).plain(),
+            mode: super::game_mode::mode_from_id(p.game_mode).name(),
+            latency: p.latency,
+            name: p.name,
+        };
+        players.into_iter().map(entry).collect()
     }
     /// The world's clock and weather, in a world.
     pub(super) fn native_time(&self) -> Option<NativeTime> {
