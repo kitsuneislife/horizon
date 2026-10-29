@@ -15,6 +15,9 @@
 //! API 3 adds what the crosshair is on (`native_target`): what a block or
 //! entity info tooltip needs.
 //!
+//! API 4 adds any loaded block (`native_block`): its name, state and light,
+//! what a light level overlay or a world map reads.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -38,7 +41,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 3;
+pub(crate) const NATIVE_HOOKS_API: u32 = 4;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -99,6 +102,18 @@ pub(crate) enum NativeTarget {
         name: Option<String>,
         health: Option<[f32; 2]>,
     },
+}
+
+/// A loaded block (`native_block`): its name (`minecraft:wheat`), its
+/// state's properties (`age` = `7`) sorted by name, and its light levels,
+/// 0 to 15: from blocks, and from the sky before night darkens it.
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct NativeBlock {
+    pub(crate) block: String,
+    pub(crate) properties: Vec<(String, String)>,
+    pub(crate) block_light: u8,
+    pub(crate) sky_light: u8,
 }
 
 /// A native mod as Options > Mods lists it (`native_mods`).
@@ -429,13 +444,28 @@ impl Game<'_> {
             });
         }
         let hit = self.pick()?;
-        let state = self.world.block(hit.pos[0], hit.pos[1], hit.pos[2]);
-        let s = self.pack.assets.registry.state(state)?;
+        let b = self.native_block(hit.pos)?;
         Some(NativeTarget::Block {
             pos: hit.pos,
             face: hit.face,
+            block: b.block,
+            properties: b.properties,
+        })
+    }
+    /// The block at `pos` in the player's world; none outside a world or
+    /// where its chunk isn't loaded. Above and below the world it is air.
+    pub(super) fn native_block(&self, pos: [i32; 3]) -> Option<NativeBlock> {
+        let [x, y, z] = pos;
+        if self.player.is_none() || !self.world.loaded(x, z) {
+            return None;
+        }
+        let s = self.pack.assets.registry.state(self.world.block(x, y, z))?;
+        let light = self.world.light(x, y, z);
+        Some(NativeBlock {
             block: s.name.clone(),
             properties: s.properties.clone().into_iter().collect(),
+            block_light: light & 15,
+            sky_light: light >> 4,
         })
     }
     /// The frame counter: frames in the last second, the slowest frame and

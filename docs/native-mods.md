@@ -43,6 +43,9 @@ API 3 adds what the crosshair is on (`native_target`): a block with its name and
 hit, or an entity in front of any block with its id and, for a mob, its type, custom name and health. What a block or
 entity info tooltip needs, without reading the game's internals.
 
+API 4 adds any block of a loaded chunk (`native_block`): its name, its state's properties and its block and sky
+light. What a light level overlay, a world map or a block scanner reads; none where the chunk isn't loaded.
+
 ## What the launcher does
 
 In the window: install a native mod from the Mods page. The first one shows a notice once (the first build downloads
