@@ -9360,6 +9360,10 @@ impl Game<'_> {
         self.streaming.sky_light = dim != Dim::Nether;
         self.streaming.nether_shading = dim == Dim::Nether;
         self.load_world_state();
+        if self.native_window() {
+            let world = self.native_world_now();
+            self.native_join(&world);
+        }
         Ok(())
     }
     /// Streaming and region storage for one dimension of a world.
@@ -9639,6 +9643,9 @@ impl Game<'_> {
         self.audio.stop_all();
         if self.remote.is_some() {
             return self.leave_server(None);
+        }
+        if self.native_window() {
+            self.native_leave();
         }
         // The save screen has finished every write before releasing storage.
         self.session_lock = None;

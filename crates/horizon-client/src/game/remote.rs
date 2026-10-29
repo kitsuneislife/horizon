@@ -543,6 +543,9 @@ impl Game<'_> {
         if reason.is_none() && self.integrated.as_ref().is_some_and(|s| !s.stopped()) {
             return self.begin_closing_save(false);
         }
+        if self.remote.as_ref().is_some_and(|r| r.joined) {
+            self.native_leave();
+        }
         self.finish_perf();
         if reason.is_none() {
             // Leaving on purpose: nothing for auto-reconnect to retry.
@@ -917,6 +920,8 @@ impl Game<'_> {
                             "Loading terrain...",
                         );
                     }
+                    let world = self.native_world_now();
+                    self.native_join(&world);
                 }
                 Event::Brand(brand) => {
                     if let Some(remote) = &mut self.remote {

@@ -79,6 +79,10 @@ or friends, or a server by its address as Horizon shows it (friend codes hidden)
 API 14 adds the scoreboard sidebar (`native_sidebar`: its title and up to 15 lines of name and score, as the HUD draws
 them) and the boss bars (`native_boss_bars`: name, progress, color and notches). What a HUD customizer reads.
 
+API 15 adds the hooks `native_join` (the window entered a world, given as `native_world` reads it, possibly before
+the player is placed) and `native_leave` (the window is leaving it, with the world still readable). What per-world
+waypoints or stats load and save on.
+
 ## What the launcher does
 
 In the window: install a native mod from the Mods page. The first one shows a notice once (the first build downloads

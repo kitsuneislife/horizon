@@ -48,6 +48,10 @@
 //! API 14 adds the scoreboard sidebar and the boss bars as the HUD shows
 //! them (`native_sidebar`, `native_boss_bars`): what a HUD customizer reads.
 //!
+//! API 15 adds the hooks `native_join` and `native_leave`, when the window
+//! enters and leaves a world: what per-world waypoints or stats load and
+//! save on.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -74,7 +78,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 14;
+pub(crate) const NATIVE_HOOKS_API: u32 = 15;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -550,6 +554,15 @@ impl Game<'_> {
     pub(super) fn native_panel_event(&mut self, mod_id: &str, event: &NativePanelEvent) {
         let _ = (mod_id, event);
     }
+    /// The window entered `world`: a server let the player in (single
+    /// player's own server included), or a world opened in the frame. The
+    /// player may not be placed yet. API 15.
+    pub(super) fn native_join(&mut self, world: &NativeWorld) {
+        let _ = world;
+    }
+    /// The window is leaving the world it joined, before any of it goes:
+    /// `native_world` still reads it. API 15.
+    pub(super) fn native_leave(&mut self) {}
 }
 
 /// Helpers for native mods, kept as stable as the hook points.
@@ -782,6 +795,11 @@ impl Game<'_> {
     /// The world the player is in, in a world: single player or a server.
     pub(super) fn native_world(&self) -> Option<NativeWorld> {
         self.player.as_ref()?;
+        Some(self.native_world_now())
+    }
+    /// The world as `native_world` reads it, for `native_join` before the
+    /// player is placed.
+    pub(super) fn native_world_now(&self) -> NativeWorld {
         let single_player = self.has_singleplayer_server();
         let name = match &self.integrated {
             Some(server) => server.world_name.clone(),
@@ -791,12 +809,12 @@ impl Game<'_> {
             .remote
             .as_ref()
             .map(|r| horizon_client::net::shown_address(&r.session.address));
-        Some(NativeWorld {
+        NativeWorld {
             single_player,
             published: single_player && self.is_published(),
             name: single_player.then_some(name),
             address: address.filter(|_| !single_player),
-        })
+        }
     }
     /// The effects on the player, in a world; none when it has none.
     pub(super) fn native_effects(&self) -> Vec<NativeEffect> {
