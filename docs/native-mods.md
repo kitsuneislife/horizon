@@ -88,6 +88,10 @@ Chat option's filter: `hide` keeps it off the chat) and `native_chat_send` (a li
 commands left to `native_command`: `cancel` keeps it from the server). What a chat filter, a chat log or chat macros
 need.
 
+API 17 adds the hook `native_screen_changed`: in a world, the open screen or the server's menu changed, named as
+`native_screen` names them (`playing` when one closed), seen once a frame and not told on joining. It only tells: a
+screen already open on the server cannot be refused from the client. What inventory tweaks start and stop on.
+
 ## What the launcher does
 
 In the window: install a native mod from the Mods page. The first one shows a notice once (the first build downloads

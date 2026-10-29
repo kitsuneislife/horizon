@@ -26,6 +26,8 @@ pub(super) struct ExtrasState {
     minimap_dim: Option<Dim>,
     /// Auto-reconnect's attempts at the current server.
     reconnect: Tracker,
+    /// The screen and menu `native_screen_changed` last told, in a world.
+    pub(super) native_screen: Option<(&'static str, Option<String>)>,
 }
 /// CPU time the minimap's tiles may take per frame.
 const MINIMAP_BUDGET: Duration = Duration::from_micros(300);
@@ -61,6 +63,7 @@ impl Game<'_> {
         // For mods (`render.frame-stats`, `native_frame_rate`).
         let now = self.extras_now();
         self.extras.fps.record(now, elapsed.as_secs_f32() * 1000.0);
+        self.native_screen_event();
         self.native_frame(elapsed);
     }
     /// The frame counter for mods: fps, min, 1% low.

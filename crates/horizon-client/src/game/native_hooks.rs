@@ -56,6 +56,10 @@
 //! hide a line arriving in chat or cancel one the player sends: what a chat
 //! filter, a chat log or chat macros need.
 //!
+//! API 17 adds the hook `native_screen_changed`, when a screen or a
+//! server's menu opens or closes in a world: what inventory tweaks start
+//! and stop on.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -82,7 +86,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 16;
+pub(crate) const NATIVE_HOOKS_API: u32 = 17;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -579,6 +583,12 @@ impl Game<'_> {
     pub(super) fn native_chat_send(&mut self, text: &str, cancel: &mut bool) {
         let _ = (text, cancel);
     }
+    /// In a world, the open screen became `screen` with the server's `menu`
+    /// (as `native_screen` names them; `playing` when one closed), seen
+    /// once a frame. Not told on joining. API 17.
+    pub(super) fn native_screen_changed(&mut self, screen: &str, menu: Option<&str>) {
+        let _ = (screen, menu);
+    }
 }
 
 /// Helpers for native mods, kept as stable as the hook points.
@@ -725,7 +735,28 @@ impl Game<'_> {
     /// and the menu's slots when it is one Horizon's menu engine models.
     pub(super) fn native_screen(&mut self) -> Option<NativeScreen> {
         self.player.as_ref()?;
-        let screen = match self.screen {
+        let screen = self.native_screen_name();
+        let mut stacks = Vec::new();
+        self.menu_session(|m, _, _| {
+            stacks = (0..m.slot_count()).map(|i| m.slot(i).cloned()).collect();
+            Some(false)
+        });
+        let slots = stacks
+            .iter()
+            .map(|s| s.as_ref().map(|s| self.native_slot(s)))
+            .collect();
+        let menu = self.remote_menu_name().map(str::to_owned);
+        let title = self.remote.as_ref().and_then(|r| r.menu_title.as_ref());
+        Some(NativeScreen {
+            screen,
+            title: menu.as_ref().and(title).map(Text::plain),
+            menu,
+            slots,
+        })
+    }
+    /// Horizon's name for the open screen, as `native_screen` gives it.
+    fn native_screen_name(&self) -> &'static str {
+        match self.screen {
             Screen::Playing => "playing",
             Screen::GameModeSwitcher => "game_mode_switcher",
             Screen::Paused => "paused",
@@ -744,24 +775,7 @@ impl Game<'_> {
             Screen::DialogWarning => "dialog_warning",
             Screen::Win => "win",
             Screen::Mod => "mod",
-        };
-        let mut stacks = Vec::new();
-        self.menu_session(|m, _, _| {
-            stacks = (0..m.slot_count()).map(|i| m.slot(i).cloned()).collect();
-            Some(false)
-        });
-        let slots = stacks
-            .iter()
-            .map(|s| s.as_ref().map(|s| self.native_slot(s)))
-            .collect();
-        let menu = self.remote_menu_name().map(str::to_owned);
-        let title = self.remote.as_ref().and_then(|r| r.menu_title.as_ref());
-        Some(NativeScreen {
-            screen,
-            title: menu.as_ref().and(title).map(Text::plain),
-            menu,
-            slots,
-        })
+        }
     }
     /// The scoreboard sidebar the HUD shows, in a world; none when it shows
     /// none.
@@ -1115,6 +1129,26 @@ impl Game<'_> {
         let mut claimed = false;
         self.native_wheel(steps, &mut claimed);
         claimed
+    }
+    /// Once a frame: tell native mods when the screen or menu changed since
+    /// the last frame in this world. Off the title screen the last one is
+    /// kept while no player is placed (respawn, a new dimension).
+    pub(super) fn native_screen_event(&mut self) {
+        if self.title.is_some() {
+            self.extras.native_screen = None;
+            return;
+        }
+        if self.player.is_none() {
+            return;
+        }
+        let now = (
+            self.native_screen_name(),
+            self.remote_menu_name().map(str::to_owned),
+        );
+        let before = self.extras.native_screen.replace(now.clone());
+        if before.is_some_and(|b| b != now) {
+            self.native_screen_changed(now.0, now.1.as_deref());
+        }
     }
     /// A chat line arrived: whether a native mod hides it.
     pub(super) fn native_chat_hidden(&mut self, text: &str) -> bool {
