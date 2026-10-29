@@ -80,6 +80,9 @@
 //! API 23 adds the helper `native_toast`, to show a toast like the game's
 //! system ones: what any notification needs.
 //!
+//! API 24 adds the helper `native_play_sound`, to play a sound only this
+//! player hears: what an alert needs.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -111,7 +114,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 23;
+pub(crate) const NATIVE_HOOKS_API: u32 = 24;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -1169,6 +1172,14 @@ impl Game<'_> {
     pub(super) fn native_toast(&mut self, title: &str, message: Option<&str>) {
         let toast = SystemToast::new(title.to_owned(), message.map(str::to_owned));
         self.native_toasts.push(toast);
+    }
+    /// Plays sound event `id` (`minecraft:entity.experience_orb.pickup`)
+    /// around the listener, for this player only (no server or LAN guest
+    /// hears it), at `volume` and `pitch` on the event's own sound source.
+    /// The world's sound random stays untouched.
+    pub(super) fn native_play_sound(&mut self, id: &str, volume: f32, pitch: f32) {
+        let seed = horizon_client::sound_engine::unique_seed();
+        self.audio.play_seeded(id, None, volume, pitch, seed);
     }
 }
 

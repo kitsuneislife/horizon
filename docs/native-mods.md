@@ -115,6 +115,9 @@ with vanilla's click type and button, as the mouse does; on a server the same `C
 API 23 adds the helper `native_toast` (a yellow title over an optional white message, drawn like the game's system
 toasts for the Notification Time option's 5 seconds, waiting its turn for a free slot). What any notification needs.
 
+API 24 adds the helper `native_play_sound` (play a sound event around the listener at a volume and pitch, heard by
+this player only, not by the server or LAN guests). What an alert needs.
+
 ## What the launcher does
 
 In the window: install a native mod from the Mods page. The first one shows a notice once (the first build downloads
