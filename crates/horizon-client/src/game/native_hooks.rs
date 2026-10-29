@@ -30,6 +30,9 @@
 //! API 8 adds the biome at a position (`native_biome`): what a world map or
 //! a coordinates HUD reads.
 //!
+//! API 9 adds the world's clock and weather (`native_time`): what a clock
+//! or a weather HUD reads.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -54,7 +57,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 8;
+pub(crate) const NATIVE_HOOKS_API: u32 = 9;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -185,6 +188,22 @@ pub(crate) struct NativeVitals {
     /// `survival`, `creative`, `adventure`, `spectator`.
     pub(crate) mode: &'static str,
     pub(crate) hardcore: bool,
+}
+
+/// The world's clock and weather (`native_time`), as the server sent them.
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct NativeTime {
+    /// Ticks since the world was made; never stops.
+    pub(crate) game_time: i64,
+    /// Days of the world's clock (`/time query day`).
+    pub(crate) day: i64,
+    /// 0 to 23999: 0 is sunrise, 6000 noon, 18000 midnight.
+    pub(crate) time_of_day: i64,
+    /// 0 to 1, fading in and out.
+    pub(crate) rain: f32,
+    /// 0 to 1, scaled by `rain`.
+    pub(crate) thunder: f32,
 }
 
 /// A native mod as Options > Mods lists it (`native_mods`).
@@ -607,6 +626,19 @@ impl Game<'_> {
             xp_total: self.experience.total,
             mode: self.mode.name(),
             hardcore: self.level.hardcore,
+        })
+    }
+    /// The world's clock and weather, in a world.
+    pub(super) fn native_time(&self) -> Option<NativeTime> {
+        self.player.as_ref()?;
+        let day_time = self.world.day_time;
+        let (rain, thunder) = self.world.weather.levels(1.0);
+        Some(NativeTime {
+            game_time: self.world.game_time,
+            day: day_time.div_euclid(24000),
+            time_of_day: day_time.rem_euclid(24000),
+            rain,
+            thunder,
         })
     }
     /// The frame counter: frames in the last second, the slowest frame and

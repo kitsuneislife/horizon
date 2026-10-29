@@ -60,6 +60,9 @@ servers don't send it. What a food or health HUD reads.
 API 8 adds the biome at a position of a loaded chunk (`native_biome`), as the server sent it. What a world map or a
 coordinates HUD reads.
 
+API 9 adds the world's clock and weather (`native_time`): game time, day, time of day, and rain and thunder levels.
+What a clock or a weather HUD reads.
+
 ## What the launcher does
 
 In the window: install a native mod from the Mods page. The first one shows a notice once (the first build downloads
