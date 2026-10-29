@@ -63,6 +63,9 @@ coordinates HUD reads.
 API 9 adds the world's clock and weather (`native_time`): game time, day, time of day, and rain and thunder levels.
 What a clock or a weather HUD reads.
 
+API 10 adds the living mobs and other players within a radius (`native_entities`), nearest first: each one's id,
+type, position, name (a player's profile name, else a custom name) and health. What a radar or a mob minimap reads.
+
 ## What the launcher does
 
 In the window: install a native mod from the Mods page. The first one shows a notice once (the first build downloads

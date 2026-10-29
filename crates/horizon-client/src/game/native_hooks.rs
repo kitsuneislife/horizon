@@ -33,6 +33,9 @@
 //! API 9 adds the world's clock and weather (`native_time`): what a clock
 //! or a weather HUD reads.
 //!
+//! API 10 adds the mobs and other players near the player
+//! (`native_entities`): what a radar or a mob minimap reads.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -57,7 +60,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 9;
+pub(crate) const NATIVE_HOOKS_API: u32 = 10;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -188,6 +191,22 @@ pub(crate) struct NativeVitals {
     /// `survival`, `creative`, `adventure`, `spectator`.
     pub(crate) mode: &'static str,
     pub(crate) hardcore: bool,
+}
+
+/// A mob or another player near the player (`native_entities`).
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct NativeEntity {
+    /// `Entity.getId`, as `NativeTarget::Entity` gives it.
+    pub(crate) id: u32,
+    /// `minecraft:zombie`, `minecraft:player`.
+    pub(crate) kind: String,
+    /// Its feet.
+    pub(crate) pos: [f64; 3],
+    /// A player's profile name, else a custom name.
+    pub(crate) name: Option<String>,
+    /// Health and max health.
+    pub(crate) health: [f32; 2],
 }
 
 /// The world's clock and weather (`native_time`), as the server sent them.
@@ -627,6 +646,34 @@ impl Game<'_> {
             mode: self.mode.name(),
             hardcore: self.level.hardcore,
         })
+    }
+    /// The living mobs and other players within `radius` blocks of the
+    /// player's feet, nearest first; none outside a world.
+    // shortcut: mobs and players only (no items, vehicles, frames), add them when a mod needs them.
+    pub(super) fn native_entities(&self, radius: f64) -> Vec<NativeEntity> {
+        let Some(p) = self.player.as_ref() else {
+            return Vec::new();
+        };
+        let at = [p.position.x, p.position.y, p.position.z];
+        let distance = |e: &NativeEntity| (0..3).map(|a| (e.pos[a] - at[a]).powi(2)).sum::<f64>();
+        let mut list: Vec<NativeEntity> = self
+            .mobs
+            .iter()
+            .filter(|m| m.alive())
+            .map(|m| NativeEntity {
+                id: m.id,
+                kind: m.kind.id.to_string(),
+                pos: [m.position.x, m.position.y, m.position.z],
+                name: self
+                    .remote_player_name(m.id)
+                    .map(str::to_owned)
+                    .or_else(|| m.custom_name.clone()),
+                health: [m.health, m.kind.max_health],
+            })
+            .filter(|e| distance(e) <= radius * radius)
+            .collect();
+        list.sort_by(|a, b| distance(a).total_cmp(&distance(b)));
+        list
     }
     /// The world's clock and weather, in a world.
     pub(super) fn native_time(&self) -> Option<NativeTime> {
