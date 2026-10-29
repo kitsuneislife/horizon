@@ -83,6 +83,11 @@ API 15 adds the hooks `native_join` (the window entered a world, given as `nativ
 the player is placed) and `native_leave` (the window is leaving it, with the world still readable). What per-world
 waypoints or stats load and save on.
 
+API 16 adds the hooks `native_chat_received` (a line reaching chat as plain text, the player's own included, past the
+Chat option's filter: `hide` keeps it off the chat) and `native_chat_send` (a line the player sends from the chat box,
+commands left to `native_command`: `cancel` keeps it from the server). What a chat filter, a chat log or chat macros
+need.
+
 ## What the launcher does
 
 In the window: install a native mod from the Mods page. The first one shows a notice once (the first build downloads

@@ -565,16 +565,18 @@ impl Game<'_> {
             return;
         }
         let focused = self.screen == Screen::Chat;
-        let heard = self.mods.running().then(|| text.plain());
-        self.ui.chat.add(
-            &self.gui.atlas,
-            text,
-            indicator,
-            source,
-            self.ticks,
-            focused,
-        );
-        if let Some(line) = heard {
+        let plain = text.plain();
+        if !self.native_chat_hidden(&plain) {
+            self.ui.chat.add(
+                &self.gui.atlas,
+                text,
+                indicator,
+                source,
+                self.ticks,
+                focused,
+            );
+        }
+        if let Some(line) = self.mods.running().then_some(plain) {
             self.mods_chat(&line);
         }
     }
@@ -695,6 +697,9 @@ impl Game<'_> {
             return;
         }
         self.ui.chat.add_recent(message);
+        if !message.starts_with('/') && self.native_chat_cancelled(message) {
+            return;
+        }
         // On a server (single player's own included) the server runs it,
         // unless a client mod owns the command.
         if self.remote.is_some() {
@@ -717,16 +722,18 @@ impl Game<'_> {
                 &[self.player_display_name(), Text::literal(message)],
             );
             let focused = self.screen == Screen::Chat;
-            let heard = self.mods.running().then(|| line.plain());
-            self.ui.chat.add(
-                &self.gui.atlas,
-                line,
-                None,
-                ChatSource::Player,
-                self.ticks,
-                focused,
-            );
-            if let Some(line) = heard {
+            let plain = line.plain();
+            if !self.native_chat_hidden(&plain) {
+                self.ui.chat.add(
+                    &self.gui.atlas,
+                    line,
+                    None,
+                    ChatSource::Player,
+                    self.ticks,
+                    focused,
+                );
+            }
+            if let Some(line) = self.mods.running().then_some(plain) {
                 self.mods_chat(&line);
             }
             self.lan_host_chat(message);

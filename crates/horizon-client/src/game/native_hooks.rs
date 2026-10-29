@@ -52,6 +52,10 @@
 //! enters and leaves a world: what per-world waypoints or stats load and
 //! save on.
 //!
+//! API 16 adds the hooks `native_chat_received` and `native_chat_send`, to
+//! hide a line arriving in chat or cancel one the player sends: what a chat
+//! filter, a chat log or chat macros need.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -78,7 +82,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 15;
+pub(crate) const NATIVE_HOOKS_API: u32 = 16;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -563,6 +567,18 @@ impl Game<'_> {
     /// The window is leaving the world it joined, before any of it goes:
     /// `native_world` still reads it. API 15.
     pub(super) fn native_leave(&mut self) {}
+    /// A line reached chat, as plain text (a server's or a player's, the
+    /// player's own included), past the Chat option's filter: set `hide` to
+    /// keep it off the chat. API 16.
+    pub(super) fn native_chat_received(&mut self, text: &str, hide: &mut bool) {
+        let _ = (text, hide);
+    }
+    /// The player sends `text` from the chat box, not a command
+    /// (`native_command` has those): set `cancel` to keep it from the
+    /// server and the chat. API 16.
+    pub(super) fn native_chat_send(&mut self, text: &str, cancel: &mut bool) {
+        let _ = (text, cancel);
+    }
 }
 
 /// Helpers for native mods, kept as stable as the hook points.
@@ -1099,6 +1115,18 @@ impl Game<'_> {
         let mut claimed = false;
         self.native_wheel(steps, &mut claimed);
         claimed
+    }
+    /// A chat line arrived: whether a native mod hides it.
+    pub(super) fn native_chat_hidden(&mut self, text: &str) -> bool {
+        let mut hide = false;
+        self.native_chat_received(text, &mut hide);
+        hide
+    }
+    /// The player sends a chat line: whether a native mod cancelled it.
+    pub(super) fn native_chat_cancelled(&mut self, text: &str) -> bool {
+        let mut cancel = false;
+        self.native_chat_send(text, &mut cancel);
+        cancel
     }
     /// A client mod's command: a native mod's first, then a WebAssembly mod's.
     pub(super) fn client_mod_command(&mut self, command: &str) -> bool {
