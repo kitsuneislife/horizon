@@ -6,6 +6,7 @@
 use super::{Game, Progress};
 use horizon_client::{
     Result,
+    audio::Audio,
     confirm_screen::Confirm,
     hud::{HudAtlas, HudBatch},
     java_text, multiplayer, packs,
@@ -65,6 +66,39 @@ impl PackPrompt {
         let (title, message, _) = self.texts();
         Confirm::new(&atlas.font, size, &title, &message)
     }
+}
+
+/// A `SystemToast`'s frame in the `ToastManager`: a free 32-pixel slot of
+/// `used` when it has none (it waits while all are taken), its slide and
+/// sound, drawn unless `hidden`. True once it has slid out.
+pub(super) fn system_toast_frame(
+    toast: &mut SystemToast,
+    used: &mut u32,
+    multiplier: f64,
+    audio: &mut Audio,
+    atlas: &HudAtlas,
+    batch: &mut HudBatch,
+    hidden: bool,
+) -> bool {
+    if toast.slot.is_none() {
+        let Some(slot) = (0..Game::TOAST_SLOTS).find(|s| *used & (1 << s) == 0) else {
+            return false;
+        };
+        *used |= 1 << slot;
+        toast.slot = Some(slot);
+    }
+    let (sound, finished) = toast.update(multiplier);
+    if let Some(show) = sound {
+        let event = if show { "ui.toast.in" } else { "ui.toast.out" };
+        audio.play(&format!("minecraft:{event}"), None, 1.0, 1.0);
+    }
+    if finished {
+        return true;
+    }
+    if let (false, Some(slot)) = (hidden, toast.slot) {
+        toast.draw(atlas, batch, 32.0 * slot as f32);
+    }
+    false
 }
 
 impl ServerPackState {
@@ -521,25 +555,9 @@ impl Game<'_> {
             let Some(toast) = &mut notifier.toast else {
                 continue;
             };
-            if toast.slot.is_none() {
-                let Some(slot) = (0..Self::TOAST_SLOTS).find(|s| used & (1 << s) == 0) else {
-                    continue;
-                };
-                used |= 1 << slot;
-                toast.slot = Some(slot);
-            }
-            let (sound, finished) = toast.update(multiplier);
-            if let Some(show) = sound {
-                let event = if show { "ui.toast.in" } else { "ui.toast.out" };
-                self.audio
-                    .play(&format!("minecraft:{event}"), None, 1.0, 1.0);
-            }
-            if finished {
+            let (audio, atlas) = (&mut self.audio, &self.gui.atlas);
+            if system_toast_frame(toast, &mut used, multiplier, audio, atlas, batch, hidden) {
                 notifier.toast = None;
-                continue;
-            }
-            if let (false, Some(slot)) = (hidden, toast.slot) {
-                toast.draw(&self.gui.atlas, batch, 32.0 * slot as f32);
             }
         }
     }
