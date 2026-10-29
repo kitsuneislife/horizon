@@ -53,6 +53,10 @@ armour HUD or a durability warning reads.
 API 6 adds the effects on the player (`native_effects`): each one's id, amplifier, ticks left, and whether it is
 ambient and shows particles. What a potion timer reads.
 
+API 7 adds the player's vitals (`native_vitals`): health, max health, absorption, armour, food, saturation, air,
+experience level, progress and total, game mode and hardcore, as the HUD draws them. Food exhaustion is left out:
+servers don't send it. What a food or health HUD reads.
+
 ## What the launcher does
 
 In the window: install a native mod from the Mods page. The first one shows a notice once (the first build downloads

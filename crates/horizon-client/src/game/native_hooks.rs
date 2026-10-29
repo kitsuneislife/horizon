@@ -24,6 +24,9 @@
 //! API 6 adds the player's effects (`native_effects`): what a potion timer
 //! reads.
 //!
+//! API 7 adds the player's health, food, air and experience
+//! (`native_vitals`): what a food or health HUD reads.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -48,7 +51,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 6;
+pub(crate) const NATIVE_HOOKS_API: u32 = 7;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -155,6 +158,30 @@ pub(crate) struct NativeEffect {
     pub(crate) duration: i32,
     pub(crate) ambient: bool,
     pub(crate) particles: bool,
+}
+
+/// The player's health, food, air and experience (`native_vitals`), as the
+/// HUD draws them. Food exhaustion is left out: servers don't send it.
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct NativeVitals {
+    pub(crate) health: f32,
+    pub(crate) max_health: f32,
+    pub(crate) absorption: f32,
+    /// The `minecraft:armor` attribute: half a chestplate icon each.
+    pub(crate) armor: i32,
+    /// 0 to 20.
+    pub(crate) food: i32,
+    pub(crate) saturation: f32,
+    /// Ticks of breath, 300 when full.
+    pub(crate) air: i32,
+    pub(crate) xp_level: i32,
+    /// 0 to 1 toward the next level.
+    pub(crate) xp_progress: f32,
+    pub(crate) xp_total: i32,
+    /// `survival`, `creative`, `adventure`, `spectator`.
+    pub(crate) mode: &'static str,
+    pub(crate) hardcore: bool,
 }
 
 /// A native mod as Options > Mods lists it (`native_mods`).
@@ -549,6 +576,27 @@ impl Game<'_> {
             particles: e.visible,
         })
         .collect()
+    }
+    /// The player's health, food, air and experience, in a world.
+    pub(super) fn native_vitals(&mut self) -> Option<NativeVitals> {
+        let p = self.player.as_mut()?;
+        Some(NativeVitals {
+            health: p.health.health(),
+            max_health: p.attribute("minecraft:max_health").unwrap_or(20.0) as f32,
+            absorption: p.health.absorption(),
+            armor: p
+                .attribute("minecraft:armor")
+                .or_else(|_| p.attribute("armor"))
+                .unwrap_or(0.0) as i32,
+            food: p.health.food.food,
+            saturation: p.health.food.saturation,
+            air: p.air,
+            xp_level: self.experience.level,
+            xp_progress: self.experience.progress,
+            xp_total: self.experience.total,
+            mode: self.mode.name(),
+            hardcore: self.level.hardcore,
+        })
     }
     /// The frame counter: frames in the last second, the slowest frame and
     /// the 1% low of the last 5 seconds, in frames per second.
