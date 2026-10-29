@@ -57,6 +57,9 @@ API 7 adds the player's vitals (`native_vitals`): health, max health, absorption
 experience level, progress and total, game mode and hardcore, as the HUD draws them. Food exhaustion is left out:
 servers don't send it. What a food or health HUD reads.
 
+API 8 adds the biome at a position of a loaded chunk (`native_biome`), as the server sent it. What a world map or a
+coordinates HUD reads.
+
 ## What the launcher does
 
 In the window: install a native mod from the Mods page. The first one shows a notice once (the first build downloads

@@ -27,6 +27,9 @@
 //! API 7 adds the player's health, food, air and experience
 //! (`native_vitals`): what a food or health HUD reads.
 //!
+//! API 8 adds the biome at a position (`native_biome`): what a world map or
+//! a coordinates HUD reads.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -51,7 +54,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 7;
+pub(crate) const NATIVE_HOOKS_API: u32 = 8;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -535,6 +538,14 @@ impl Game<'_> {
             block_light: light & 15,
             sky_light: light >> 4,
         })
+    }
+    /// The biome at `pos` in the player's world (`minecraft:plains`), as the
+    /// server sent it; none outside a world or where its chunk isn't loaded.
+    pub(super) fn native_biome(&self, pos: [i32; 3]) -> Option<String> {
+        let [x, y, z] = pos;
+        self.player.as_ref()?;
+        let chunk = self.world.chunks.get(&(x >> 4, z >> 4))?;
+        Some(self.res.biomes().get(chunk.biome(x, y, z)).name.clone())
     }
     /// The player's inventory, in a world.
     pub(super) fn native_inventory(&self) -> Option<NativeInventory> {
