@@ -77,6 +77,9 @@
 //! API 22 adds the helper `native_click_slot`, to click a slot of the open
 //! screen as the mouse does: what an inventory sorter or mouse tweaks need.
 //!
+//! API 23 adds the helper `native_toast`, to show a toast like the game's
+//! system ones: what any notification needs.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -84,7 +87,10 @@
 //! that would break such a bundle is not made.
 //! Bodies have no `cfg` and no macros: horizon-mixins refuses a target with
 //! either (`tests::hook_points_stay_hookable`).
-use super::{Game, Screen, execution_role::ExecutionRole, native_panel_recipes::RecipePage};
+use super::{
+    Game, Screen, execution_role::ExecutionRole, native_panel_recipes::RecipePage,
+    server_packs::system_toast_frame,
+};
 use horizon_client::{
     chat::ChatSource,
     extras::Corner,
@@ -96,6 +102,7 @@ use horizon_client::{
     mod_list::{self, Installed, NativePage},
     tab_list::{self, TabPlayer},
     text::Text,
+    toasts::SystemToast,
 };
 use horizon_world::registry::BlockStateId;
 use std::{fs, path::PathBuf, sync::Arc, time::Duration};
@@ -104,7 +111,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 22;
+pub(crate) const NATIVE_HOOKS_API: u32 = 23;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -1156,6 +1163,13 @@ impl Game<'_> {
             Err("the screen took no click".into())
         }
     }
+    /// Shows a toast as the game's system ones look: a yellow `title` over a
+    /// white `message` (or the title alone), for the Notification Time
+    /// option's 5 seconds. Toasts wait their turn for one of the 5 slots.
+    pub(super) fn native_toast(&mut self, title: &str, message: Option<&str>) {
+        let toast = SystemToast::new(title.to_owned(), message.map(str::to_owned));
+        self.native_toasts.push(toast);
+    }
 }
 
 /// Where the game calls the hook points.
@@ -1294,6 +1308,16 @@ impl Game<'_> {
             let block = s.name.clone();
             self.native_break(pos, &block);
         }
+    }
+    /// The native mods' toasts, after the game's (`hidden`, F1, keeps them
+    /// timing out undrawn).
+    pub(super) fn draw_native_toasts(&mut self, batch: &mut HudBatch, hidden: bool) {
+        let multiplier = f64::from(self.settings.notification_display_time);
+        let mut used = self.toast_slots_used();
+        let (audio, atlas) = (&mut self.audio, &self.gui.atlas);
+        self.native_toasts.retain_mut(|toast| {
+            !system_toast_frame(toast, &mut used, multiplier, audio, atlas, batch, hidden)
+        });
     }
     /// Tells `native_sound` the sounds started since the last frame; the
     /// first call starts keeping them.

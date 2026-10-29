@@ -1862,6 +1862,8 @@ struct Game<'a> {
     panel: native_panel::Panel,
     /// Horizon's own shader pack, while one is picked (`game/native_shaders.rs`).
     native_shaders: native_shaders::NativeShaders,
+    /// Toasts native mods showed (`native_toast`), oldest first.
+    native_toasts: Vec<horizon_client::toasts::SystemToast>,
     /// Meshed sections waiting for an upload budget (Horizon settings).
     pending_uploads: Vec<((i32, i32, i32), horizon_client::mesher::SectionMesh)>,
     /// This frame's view frustum, for culling entities and block entities.
@@ -6419,6 +6421,7 @@ impl Game<'_> {
         // ToastManager.extractRenderState: F1 hides the toasts too.
         self.draw_toasts(&mut batch, !show_hud);
         self.draw_pack_toasts(&mut batch, !show_hud);
+        self.draw_native_toasts(&mut batch, !show_hud);
         if self.server_packs.prompt.is_none() {
             self.remote_hud(&mut batch);
             self.draw_sign_editor(&mut batch);
@@ -14342,6 +14345,7 @@ impl<'a> Game<'a> {
             recipe_tables: Default::default(),
             panel: Default::default(),
             native_shaders: Default::default(),
+            native_toasts: Vec::new(),
             sky_darken_memo: Default::default(),
             persist: Default::default(),
             remote: None,

@@ -112,6 +112,9 @@ API 22 adds the helper `native_click_slot` (click a slot of the open screen, num
 with vanilla's click type and button, as the mouse does; on a server the same `ContainerClick` goes out; refused where
 `native_screen` has no slots). What an inventory sorter or mouse tweaks need.
 
+API 23 adds the helper `native_toast` (a yellow title over an optional white message, drawn like the game's system
+toasts for the Notification Time option's 5 seconds, waiting its turn for a free slot). What any notification needs.
+
 ## What the launcher does
 
 In the window: install a native mod from the Mods page. The first one shows a notice once (the first build downloads
