@@ -92,6 +92,10 @@ API 17 adds the hook `native_screen_changed`: in a world, the open screen or the
 `native_screen` names them (`playing` when one closed), seen once a frame and not told on joining. It only tells: a
 screen already open on the server cannot be refused from the client. What inventory tweaks start and stop on.
 
+API 18 adds the hook `native_tooltip`: an item's tooltip shows for a stack (given as `native_inventory` gives a slot),
+each frame it is drawn, and lines pushed with their colour (`§` codes allowed) go under Horizon's. A stack that hides
+its tooltip is not asked. What a food, stats or durability tooltip needs.
+
 ## What the launcher does
 
 In the window: install a native mod from the Mods page. The first one shows a notice once (the first build downloads

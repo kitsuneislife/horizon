@@ -60,6 +60,9 @@
 //! server's menu opens or closes in a world: what inventory tweaks start
 //! and stop on.
 //!
+//! API 18 adds the hook `native_tooltip`, to add lines under an item's
+//! tooltip: what a food, stats or durability tooltip needs.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -86,7 +89,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 17;
+pub(crate) const NATIVE_HOOKS_API: u32 = 18;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -588,6 +591,12 @@ impl Game<'_> {
     /// once a frame. Not told on joining. API 17.
     pub(super) fn native_screen_changed(&mut self, screen: &str, menu: Option<&str>) {
         let _ = (screen, menu);
+    }
+    /// An item's tooltip shows for `stack`, each frame it is drawn: push
+    /// lines (`§` codes allowed) with their colour to add under Horizon's.
+    /// Not asked when the stack hides its tooltip. API 18.
+    pub(super) fn native_tooltip(&self, stack: &NativeSlot, lines: &mut Vec<(String, u32)>) {
+        let _ = (stack, lines);
     }
 }
 
@@ -1161,6 +1170,15 @@ impl Game<'_> {
         let mut cancel = false;
         self.native_chat_send(text, &mut cancel);
         cancel
+    }
+    /// The lines native mods add under `stack`'s tooltip.
+    pub(super) fn native_tooltip_lines(&self, stack: &ItemStack) -> Vec<(Text, u32)> {
+        let mut lines = Vec::new();
+        self.native_tooltip(&self.native_slot(stack), &mut lines);
+        lines
+            .into_iter()
+            .map(|(s, c)| (Text::legacy(&s), c))
+            .collect()
     }
     /// A client mod's command: a native mod's first, then a WebAssembly mod's.
     pub(super) fn client_mod_command(&mut self, command: &str) -> bool {

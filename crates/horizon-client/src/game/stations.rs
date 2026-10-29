@@ -1691,12 +1691,17 @@ impl Game<'_> {
     // ---------------------------------------------------------------- tooltips
 
     /// `ItemStack.getTooltipLines` subset: name in rarity colour, lore,
-    /// potion effects, enchantments (gray, curses red), stored enchantments, trims.
+    /// potion effects, enchantments (gray, curses red), stored enchantments, trims,
+    /// then native mods' lines.
     pub(super) fn stack_tooltip(
         &self,
         stack: &ItemStack,
     ) -> Vec<(horizon_client::text::Text, u32)> {
-        self.stack_tooltip_lines(stack, false)
+        let mut lines = self.stack_tooltip_lines(stack, false);
+        if !lines.is_empty() {
+            lines.extend(self.native_tooltip_lines(stack));
+        }
+        lines
     }
     /// `ItemStack.getRarity`'s colour for the name line and a `[name]` link.
     fn rarity_color(&self, stack: &ItemStack) -> u32 {
