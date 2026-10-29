@@ -101,6 +101,10 @@ the crosshair is on as `native_target` gives it, before the game acts; holding t
 `native_break` (the player broke a block, by position and name, as the window sees it go: on a server, before the
 server confirms). They only tell. What an auto tool, a combat HUD or a mining counter starts on.
 
+API 20 adds the hook `native_sound` (each sound event that started since the last frame, with its position, none for
+one played around the listener, and its volume; muted sounds are not told) and the helper `native_sound_volume` (scale
+a sound event's volume from its next play on, 0 mutes, none undoes it). What sound filters and subtitles need.
+
 ## What the launcher does
 
 In the window: install a native mod from the Mods page. The first one shows a notice once (the first build downloads

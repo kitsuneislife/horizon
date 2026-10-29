@@ -67,6 +67,10 @@
 //! when the player clicks to attack or use and when a block breaks: what an
 //! auto tool, a combat HUD or a mining counter starts on.
 //!
+//! API 20 adds the hook `native_sound`, told each sound that starts, and the
+//! helper `native_sound_volume`, to scale or mute a sound event: what sound
+//! filters and subtitles need.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -94,7 +98,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 19;
+pub(crate) const NATIVE_HOOKS_API: u32 = 20;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -620,6 +624,13 @@ impl Game<'_> {
     pub(super) fn native_break(&mut self, pos: [i32; 3], block: &str) {
         let _ = (pos, block);
     }
+    /// Sound event `id` (`minecraft:block.chest.open`) started this frame at
+    /// `pos` (none for one played around the listener, like a click) and
+    /// `volume`, after `native_sound_volume`. Muted sounds are not told.
+    /// API 20.
+    pub(super) fn native_sound(&mut self, id: &str, pos: Option<[f64; 3]>, volume: f32) {
+        let _ = (id, pos, volume);
+    }
 }
 
 /// Helpers for native mods, kept as stable as the hook points.
@@ -1084,6 +1095,15 @@ impl Game<'_> {
     pub(super) fn native_give(&mut self, item: &str, count: u32) -> Result<(), String> {
         self.recipe_give(item, count)
     }
+    /// Scales the volume of sound event `id` (`minecraft:entity.ghast.scream`)
+    /// by `factor` from its next play on (0 mutes); none plays it as Horizon
+    /// does again.
+    pub(super) fn native_sound_volume(&mut self, id: &str, factor: Option<f32>) {
+        match factor {
+            Some(factor) => self.audio.scales.insert(id.to_owned(), factor),
+            None => self.audio.scales.remove(id),
+        };
+    }
 }
 
 /// Where the game calls the hook points.
@@ -1221,6 +1241,14 @@ impl Game<'_> {
         if let Some(s) = self.pack.assets.registry.state(state) {
             let block = s.name.clone();
             self.native_break(pos, &block);
+        }
+    }
+    /// Tells `native_sound` the sounds started since the last frame; the
+    /// first call starts keeping them.
+    pub(super) fn native_sound_event(&mut self) {
+        let played = self.audio.played.replace(Vec::new());
+        for (id, pos, volume) in played.unwrap_or_default() {
+            self.native_sound(&id, pos, volume);
         }
     }
     /// A client mod's command: a native mod's first, then a WebAssembly mod's.

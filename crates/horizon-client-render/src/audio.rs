@@ -164,6 +164,11 @@ pub struct Audio {
     /// How many times each selection was stopped ("record *", "* minecraft:…", `*` for
     /// any), with or without an audio device, as `heard`.
     pub stopped: std::collections::BTreeMap<String, u32>,
+    /// Sounds started since the last drain (event, position unless relative,
+    /// volume), for native mods; none until a window starts draining.
+    pub played: Option<Vec<(String, Option<[f64; 3]>, f32)>>,
+    /// Volume factors native mods set by sound event (0 mutes).
+    pub scales: HashMap<String, f32>,
 }
 fn decode(path: &Path) -> Option<(Vec<f32>, u32)> {
     use symphonia::core::{
@@ -599,6 +604,8 @@ impl Audio {
             capture: None,
             heard: Default::default(),
             stopped: Default::default(),
+            played: None,
+            scales: HashMap::new(),
         }
     }
     #[cfg(not(feature = "audio"))]
@@ -854,7 +861,20 @@ impl Sounds for Audio {
     fn engine(&mut self) -> &mut SoundEngine {
         &mut self.engine
     }
-    fn play_instance(&mut self, instance: SoundInstance, retain: bool) -> (InstanceId, PlayResult) {
+    fn play_instance(
+        &mut self,
+        mut instance: SoundInstance,
+        retain: bool,
+    ) -> (InstanceId, PlayResult) {
+        if let Some(scale) = self.scales.get(&instance.identifier) {
+            instance.volume *= scale;
+        }
+        if let Some(played) = self.played.as_mut()
+            && instance.volume > 0.0
+        {
+            let at = (!instance.relative).then_some(instance.position);
+            played.push((instance.identifier.clone(), at, instance.volume));
+        }
         self.sync_volumes();
         self.bound().play_instance(instance, retain)
     }
@@ -902,6 +922,37 @@ mod tests {
         assert_eq!(
             audio.backend.mixer.lock().unwrap().channels[&1].state,
             State::Initial
+        );
+        audio.stop_all();
+    }
+
+    #[test]
+    fn native_mods_scale_and_hear_started_sounds() {
+        let mut audio = Audio::silent(Path::new("/nonexistent/horizon-test-assets"));
+        audio.engine.registry.add_file(
+            "minecraft",
+            br#"{"ui.button.click":{"sounds":["gui/button"]}}"#,
+            &|_, _| true,
+        );
+        audio.engine.loaded = true;
+        audio.backend.live = true;
+        audio.play_button_click();
+        assert_eq!(audio.played, None, "nothing kept before a window drains");
+        audio.played = Some(Vec::new());
+        audio.scales.insert("minecraft:ui.button.click".into(), 0.5);
+        audio.play_button_click();
+        let instance = audio.engine.instance(2).expect("click reached the engine");
+        assert_eq!(instance.volume, 0.125);
+        assert_eq!(
+            audio.played.as_deref(),
+            Some(&[("minecraft:ui.button.click".to_owned(), None, 0.125)][..])
+        );
+        audio.scales.insert("minecraft:ui.button.click".into(), 0.0);
+        audio.play_button_click();
+        assert_eq!(
+            audio.played.as_ref().map(Vec::len),
+            Some(1),
+            "a muted sound is not heard"
         );
         audio.stop_all();
     }
