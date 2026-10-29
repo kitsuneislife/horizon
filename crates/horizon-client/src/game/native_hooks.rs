@@ -71,6 +71,9 @@
 //! helper `native_sound_volume`, to scale or mute a sound event: what sound
 //! filters and subtitles need.
 //!
+//! API 21 adds the helper `native_select_slot`, to pick the hotbar slot as a
+//! number key does: what an auto tool or a hotbar swap needs.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -98,7 +101,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 20;
+pub(crate) const NATIVE_HOOKS_API: u32 = 21;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -1103,6 +1106,19 @@ impl Game<'_> {
             Some(factor) => self.audio.scales.insert(id.to_owned(), factor),
             None => self.audio.scales.remove(id),
         };
+    }
+    /// Selects hotbar slot `slot` (0 to 8) as a number key does; the server
+    /// hears on the next tick. Refused out of range and for a spectator,
+    /// whose number keys drive the spectator menu.
+    pub(super) fn native_select_slot(&mut self, slot: usize) -> Result<(), String> {
+        if slot > 8 {
+            return Err("hotbar slot must be 0 to 8".into());
+        }
+        if self.spectator() {
+            return Err("a spectator has no hotbar".into());
+        }
+        self.selected = slot;
+        Ok(())
     }
 }
 

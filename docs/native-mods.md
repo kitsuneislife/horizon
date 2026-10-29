@@ -105,6 +105,9 @@ API 20 adds the hook `native_sound` (each sound event that started since the las
 one played around the listener, and its volume; muted sounds are not told) and the helper `native_sound_volume` (scale
 a sound event's volume from its next play on, 0 mutes, none undoes it). What sound filters and subtitles need.
 
+API 21 adds the helper `native_select_slot` (select hotbar slot 0 to 8 as a number key does; the server hears on the
+next tick; refused for a spectator). What an auto tool or a hotbar swap needs.
+
 ## What the launcher does
 
 In the window: install a native mod from the Mods page. The first one shows a notice once (the first build downloads
