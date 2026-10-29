@@ -76,6 +76,9 @@ where Horizon's menu engine models the screen. What an inventory sorter or a che
 API 13 adds which world the player is in (`native_world`): a single player world by name, and whether it is open to LAN
 or friends, or a server by its address as Horizon shows it (friend codes hidden). What per-world waypoints key on.
 
+API 14 adds the scoreboard sidebar (`native_sidebar`: its title and up to 15 lines of name and score, as the HUD draws
+them) and the boss bars (`native_boss_bars`: name, progress, color and notches). What a HUD customizer reads.
+
 ## What the launcher does
 
 In the window: install a native mod from the Mods page. The first one shows a notice once (the first build downloads

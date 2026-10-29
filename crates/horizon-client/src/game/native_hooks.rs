@@ -45,6 +45,9 @@
 //! API 13 adds which world the player is in (`native_world`): single player
 //! by name or a server by address, what per-world waypoints key on.
 //!
+//! API 14 adds the scoreboard sidebar and the boss bars as the HUD shows
+//! them (`native_sidebar`, `native_boss_bars`): what a HUD customizer reads.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -58,6 +61,7 @@ use horizon_client::{
     extras::Corner,
     extras_hud::Corners,
     hud::{HudBatch, rgba},
+    hud_overlays,
     items::ItemStack,
     keybinds,
     mod_list::{self, Installed, NativePage},
@@ -70,7 +74,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 13;
+pub(crate) const NATIVE_HOOKS_API: u32 = 14;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -191,6 +195,28 @@ pub(crate) struct NativeWorld {
     pub(crate) published: bool,
     pub(crate) name: Option<String>,
     pub(crate) address: Option<String>,
+}
+
+/// The scoreboard sidebar (`native_sidebar`): its title and its lines top
+/// first, each the name as its team shows it and the score as formatted
+/// (empty for a blank format). At most 15, as the HUD draws.
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct NativeSidebar {
+    pub(crate) title: String,
+    pub(crate) lines: Vec<(String, String)>,
+}
+
+/// A boss bar (`native_boss_bars`): its name, progress from 0 to 1, color
+/// (`pink`, `blue`, `red`, `green`, `yellow`, `purple`, `white`) and
+/// notches (0 for a plain bar, else 6, 10, 12 or 20).
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct NativeBossBar {
+    pub(crate) name: String,
+    pub(crate) progress: f32,
+    pub(crate) color: &'static str,
+    pub(crate) notches: u8,
 }
 
 /// An effect on the player (`native_effects`): `minecraft:speed`, its
@@ -707,6 +733,51 @@ impl Game<'_> {
             menu,
             slots,
         })
+    }
+    /// The scoreboard sidebar the HUD shows, in a world; none when it shows
+    /// none.
+    pub(super) fn native_sidebar(&self) -> Option<NativeSidebar> {
+        self.player.as_ref()?;
+        let objective = self.sidebar_objective()?;
+        let lines = hud_overlays::sidebar_rows(&self.score.board, objective)
+            .iter()
+            .map(|(name, score)| (name.plain(), score.plain()))
+            .collect();
+        Some(NativeSidebar {
+            title: objective.display_text().resolve_legacy().plain(),
+            lines,
+        })
+    }
+    /// The boss bars the HUD shows, top first, in a world.
+    pub(super) fn native_boss_bars(&self) -> Vec<NativeBossBar> {
+        if self.player.is_none() {
+            return Vec::new();
+        }
+        let now = horizon_client::boss_overlay::now_millis();
+        self.boss_overlay
+            .bars(now)
+            .iter()
+            .map(|b| NativeBossBar {
+                name: b.name.plain(),
+                progress: b.progress,
+                color: match b.color {
+                    0 => "pink",
+                    1 => "blue",
+                    2 => "red",
+                    3 => "green",
+                    4 => "yellow",
+                    5 => "purple",
+                    _ => "white",
+                },
+                notches: match b.overlay {
+                    1 => 6,
+                    2 => 10,
+                    3 => 12,
+                    4 => 20,
+                    _ => 0,
+                },
+            })
+            .collect()
     }
     /// The world the player is in, in a world: single player or a server.
     pub(super) fn native_world(&self) -> Option<NativeWorld> {
