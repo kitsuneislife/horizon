@@ -96,6 +96,11 @@ API 18 adds the hook `native_tooltip`: an item's tooltip shows for a stack (give
 each frame it is drawn, and lines pushed with their colour (`§` codes allowed) go under Horizon's. A stack that hides
 its tooltip is not asked. What a food, stats or durability tooltip needs.
 
+API 19 adds the hooks `native_attack` and `native_use` (the player pressed attack or use while playing, given what
+the crosshair is on as `native_target` gives it, before the game acts; holding the button is not told again) and
+`native_break` (the player broke a block, by position and name, as the window sees it go: on a server, before the
+server confirms). They only tell. What an auto tool, a combat HUD or a mining counter starts on.
+
 ## What the launcher does
 
 In the window: install a native mod from the Mods page. The first one shows a notice once (the first build downloads

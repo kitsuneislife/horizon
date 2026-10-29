@@ -63,6 +63,10 @@
 //! API 18 adds the hook `native_tooltip`, to add lines under an item's
 //! tooltip: what a food, stats or durability tooltip needs.
 //!
+//! API 19 adds the hooks `native_attack`, `native_use` and `native_break`,
+//! when the player clicks to attack or use and when a block breaks: what an
+//! auto tool, a combat HUD or a mining counter starts on.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -83,13 +87,14 @@ use horizon_client::{
     tab_list::{self, TabPlayer},
     text::Text,
 };
+use horizon_world::registry::BlockStateId;
 use std::{fs, path::PathBuf, sync::Arc, time::Duration};
 use winit::{event::MouseButton, keyboard::KeyCode};
 
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 18;
+pub(crate) const NATIVE_HOOKS_API: u32 = 19;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -597,6 +602,23 @@ impl Game<'_> {
     /// Not asked when the stack hides its tooltip. API 18.
     pub(super) fn native_tooltip(&self, stack: &NativeSlot, lines: &mut Vec<(String, u32)>) {
         let _ = (stack, lines);
+    }
+    /// The player pressed attack while playing, on `target` (as
+    /// `native_target` gives it; none in the air), before the game acts on
+    /// the click. Holding the button down is not told again. API 19.
+    pub(super) fn native_attack(&mut self, target: Option<&NativeTarget>) {
+        let _ = target;
+    }
+    /// The player pressed use while playing, on `target` as for
+    /// `native_attack`. Using again while the button is held is not told.
+    /// API 19.
+    pub(super) fn native_use(&mut self, target: Option<&NativeTarget>) {
+        let _ = target;
+    }
+    /// The player broke `block` (`minecraft:stone`) at `pos`, as this window
+    /// sees it go (on a server, before the server confirms). API 19.
+    pub(super) fn native_break(&mut self, pos: [i32; 3], block: &str) {
+        let _ = (pos, block);
     }
 }
 
@@ -1179,6 +1201,27 @@ impl Game<'_> {
             .into_iter()
             .map(|(s, c)| (Text::legacy(&s), c))
             .collect()
+    }
+    /// A mouse press while playing: an attack or a use, told with its target.
+    pub(super) fn native_pressed(&mut self, button: MouseButton) {
+        let attack = match button {
+            MouseButton::Left => true,
+            MouseButton::Right => false,
+            _ => return,
+        };
+        let target = self.native_target();
+        if attack {
+            self.native_attack(target.as_ref());
+        } else {
+            self.native_use(target.as_ref());
+        }
+    }
+    /// The player broke `state` at `pos`, before the world loses it.
+    pub(super) fn native_broke(&mut self, pos: [i32; 3], state: BlockStateId) {
+        if let Some(s) = self.pack.assets.registry.state(state) {
+            let block = s.name.clone();
+            self.native_break(pos, &block);
+        }
     }
     /// A client mod's command: a native mod's first, then a WebAssembly mod's.
     pub(super) fn client_mod_command(&mut self, command: &str) -> bool {

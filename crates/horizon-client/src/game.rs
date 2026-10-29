@@ -4095,6 +4095,7 @@ impl Game<'_> {
         self.pad_rumble(horizon_client::gamepad::Rumble::BlockBroken);
         // ServerPlayerGameMode.destroyBlock.
         let state = self.world.block(pos[0], pos[1], pos[2]);
+        self.native_broke(pos, state);
         let broken = state;
         let facts = self.res.facts().get(state).clone();
         let state = self.crack_mined_pot(pos, state);
@@ -12584,6 +12585,9 @@ impl Game<'_> {
         }
         if self.sleeping.is_some() {
             return Ok(());
+        }
+        if pressed {
+            self.native_pressed(button);
         }
         // key.spectatorHotbar (the middle button) opens the spectator menu
         // and uses its selected item.
