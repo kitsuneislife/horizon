@@ -21,6 +21,9 @@
 //! API 5 adds the player's inventory (`native_inventory`): what an armour
 //! HUD or a durability warning reads.
 //!
+//! API 6 adds the player's effects (`native_effects`): what a potion timer
+//! reads.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -45,7 +48,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 5;
+pub(crate) const NATIVE_HOOKS_API: u32 = 6;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -139,6 +142,19 @@ pub(crate) struct NativeSlot {
 pub(crate) struct NativeInventory {
     pub(crate) slots: Vec<Option<NativeSlot>>,
     pub(crate) selected: u32,
+}
+
+/// An effect on the player (`native_effects`): `minecraft:speed`, its
+/// amplifier (0 is level I), its ticks left (-1 is infinite), from a beacon
+/// or conduit (`ambient`), and whether it shows particles.
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct NativeEffect {
+    pub(crate) id: String,
+    pub(crate) amplifier: i32,
+    pub(crate) duration: i32,
+    pub(crate) ambient: bool,
+    pub(crate) particles: bool,
 }
 
 /// A native mod as Options > Mods lists it (`native_mods`).
@@ -518,6 +534,21 @@ impl Game<'_> {
             slots: all.map(slot).collect(),
             selected: self.selected as u32,
         })
+    }
+    /// The effects on the player, in a world; none when it has none.
+    pub(super) fn native_effects(&self) -> Vec<NativeEffect> {
+        if self.player.is_none() {
+            return Vec::new();
+        }
+        let list = self.potions.effects.list.iter();
+        list.map(|e| NativeEffect {
+            id: ["minecraft:", e.id].concat(),
+            amplifier: e.amplifier,
+            duration: e.duration,
+            ambient: e.ambient,
+            particles: e.visible,
+        })
+        .collect()
     }
     /// The frame counter: frames in the last second, the slowest frame and
     /// the 1% low of the last 5 seconds, in frames per second.

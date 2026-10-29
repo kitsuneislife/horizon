@@ -50,6 +50,9 @@ API 5 adds the player's inventory (`native_inventory`): every stack by vanilla's
 rest, armour from feet to head, off hand) with its damage and durability, and the hotbar slot in hand. What an
 armour HUD or a durability warning reads.
 
+API 6 adds the effects on the player (`native_effects`): each one's id, amplifier, ticks left, and whether it is
+ambient and shows particles. What a potion timer reads.
+
 ## What the launcher does
 
 In the window: install a native mod from the Mods page. The first one shows a notice once (the first build downloads
