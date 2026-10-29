@@ -632,17 +632,12 @@ pub fn compare_ignore_case(a: &str, b: &str) -> Ordering {
     x.len().cmp(&y.len())
 }
 
-/// `Hud.displayScoreboardSidebar` for `objective`; `background` and
-/// `header` are `Options.getBackgroundColor(0.3F)` and `(0.4F)`.
-pub fn sidebar(
-    w: i32,
-    h: i32,
+/// The sidebar's rows, top first, as `Hud.displayScoreboardSidebar` draws
+/// them: the owner's name as its team shows it, and its formatted score.
+pub fn sidebar_rows(
     board: &crate::scoreboard::Scoreboard,
     objective: &crate::scoreboard::Objective,
-    font: &Font,
-    background: u32,
-    header: u32,
-) -> Vec<GuiDraw> {
+) -> Vec<(Text, Text)> {
     use crate::scoreboard::NumberFormat;
     let format = objective.format_or_default(NumberFormat::sidebar_default());
     let mut entries: Vec<_> = board
@@ -659,7 +654,7 @@ pub fn sidebar(
     entries.truncate(15);
     // Font draws each literal through StringDecomposer.iterateFormatted:
     // legacy `§` codes style what follows and are not drawn.
-    let rows: Vec<(Text, Text, i32)> = entries
+    entries
         .iter()
         .map(|e| {
             let name = match board.players_team(&e.owner) {
@@ -667,7 +662,25 @@ pub fn sidebar(
                 None => e.owner_name(),
             }
             .resolve_legacy();
-            let score = e.format_value(&format).resolve_legacy();
+            (name, e.format_value(&format).resolve_legacy())
+        })
+        .collect()
+}
+
+/// `Hud.displayScoreboardSidebar` for `objective`; `background` and
+/// `header` are `Options.getBackgroundColor(0.3F)` and `(0.4F)`.
+pub fn sidebar(
+    w: i32,
+    h: i32,
+    board: &crate::scoreboard::Scoreboard,
+    objective: &crate::scoreboard::Objective,
+    font: &Font,
+    background: u32,
+    header: u32,
+) -> Vec<GuiDraw> {
+    let rows: Vec<(Text, Text, i32)> = sidebar_rows(board, objective)
+        .into_iter()
+        .map(|(name, score)| {
             let score_width = width(font, &score);
             (name, score, score_width)
         })
