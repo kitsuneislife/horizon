@@ -42,6 +42,9 @@
 //! API 12 adds the open screen and its menu's slots (`native_screen`): what
 //! an inventory sorter or a chest search reads.
 //!
+//! API 13 adds which world the player is in (`native_world`): single player
+//! by name or a server by address, what per-world waypoints key on.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -67,7 +70,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 12;
+pub(crate) const NATIVE_HOOKS_API: u32 = 13;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -176,6 +179,18 @@ pub(crate) struct NativeScreen {
     pub(crate) menu: Option<String>,
     pub(crate) title: Option<String>,
     pub(crate) slots: Vec<Option<NativeSlot>>,
+}
+
+/// The world the player is in (`native_world`): a single player world, by
+/// its `name`, `published` when open to LAN or friends; or a server, by its
+/// `address` as Horizon shows it (friend codes hidden).
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct NativeWorld {
+    pub(crate) single_player: bool,
+    pub(crate) published: bool,
+    pub(crate) name: Option<String>,
+    pub(crate) address: Option<String>,
 }
 
 /// An effect on the player (`native_effects`): `minecraft:speed`, its
@@ -691,6 +706,25 @@ impl Game<'_> {
             title: menu.as_ref().and(title).map(Text::plain),
             menu,
             slots,
+        })
+    }
+    /// The world the player is in, in a world: single player or a server.
+    pub(super) fn native_world(&self) -> Option<NativeWorld> {
+        self.player.as_ref()?;
+        let single_player = self.has_singleplayer_server();
+        let name = match &self.integrated {
+            Some(server) => server.world_name.clone(),
+            None => self.level.name.clone(),
+        };
+        let address = self
+            .remote
+            .as_ref()
+            .map(|r| horizon_client::net::shown_address(&r.session.address));
+        Some(NativeWorld {
+            single_player,
+            published: single_player && self.is_published(),
+            name: single_player.then_some(name),
+            address: address.filter(|_| !single_player),
         })
     }
     /// The effects on the player, in a world; none when it has none.

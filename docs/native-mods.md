@@ -73,6 +73,9 @@ API 12 adds the open screen (`native_screen`): Horizon's name for it (`playing`,
 menu type and title (`minecraft:generic_9x3`), and the menu's slots in vanilla's order with damage and durability,
 where Horizon's menu engine models the screen. What an inventory sorter or a chest search reads.
 
+API 13 adds which world the player is in (`native_world`): a single player world by name, and whether it is open to LAN
+or friends, or a server by its address as Horizon shows it (friend codes hidden). What per-world waypoints key on.
+
 ## What the launcher does
 
 In the window: install a native mod from the Mods page. The first one shows a notice once (the first build downloads
