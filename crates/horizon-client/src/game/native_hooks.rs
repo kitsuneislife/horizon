@@ -12,6 +12,9 @@
 //! `native_known_recipes`, `native_place_recipe`, `native_give`): what a
 //! recipe viewer needs.
 //!
+//! API 3 adds what the crosshair is on (`native_target`): what a block or
+//! entity info tooltip needs.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -35,7 +38,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 2;
+pub(crate) const NATIVE_HOOKS_API: u32 = 3;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -71,6 +74,31 @@ pub(crate) struct NativePlayer {
     pub(crate) pitch: f32,
     /// `minecraft:overworld`, `minecraft:the_nether`, `minecraft:the_end`.
     pub(crate) dimension: &'static str,
+}
+
+/// What the crosshair is on (`native_target`), as the game picks it for
+/// attacking and using.
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum NativeTarget {
+    /// A block's position, the face hit as a unit vector (`[0, 1, 0]` is
+    /// the top), its name (`minecraft:wheat`) and its state's properties
+    /// (`age` = `7`), sorted by name.
+    Block {
+        pos: [i32; 3],
+        face: [i32; 3],
+        block: String,
+        properties: Vec<(String, String)>,
+    },
+    /// An entity before any block: its id (`Entity.getId`; none for a
+    /// player, a projectile or the dragon) and, for a mob, its type
+    /// (`minecraft:zombie`), custom name and health out of its type's.
+    Entity {
+        id: Option<i32>,
+        kind: Option<String>,
+        name: Option<String>,
+        health: Option<[f32; 2]>,
+    },
 }
 
 /// A native mod as Options > Mods lists it (`native_mods`).
@@ -383,6 +411,31 @@ impl Game<'_> {
             yaw: self.yaw,
             pitch: self.pitch,
             dimension: self.dim.id(),
+        })
+    }
+    /// What the crosshair is on within the player's reach: an entity in
+    /// front of any block, else a block; none in the air or outside a world.
+    pub(super) fn native_target(&self) -> Option<NativeTarget> {
+        self.player.as_ref()?;
+        if let Some(id) = self.pick_entity_hit() {
+            let mob = id
+                .and_then(|id| u32::try_from(id).ok())
+                .and_then(|id| self.mobs.iter().find(|m| m.id == id));
+            return Some(NativeTarget::Entity {
+                id,
+                kind: mob.map(|m| m.kind.id.clone()),
+                name: mob.and_then(|m| m.custom_name.clone()),
+                health: mob.map(|m| [m.health, m.kind.max_health]),
+            });
+        }
+        let hit = self.pick()?;
+        let state = self.world.block(hit.pos[0], hit.pos[1], hit.pos[2]);
+        let s = self.pack.assets.registry.state(state)?;
+        Some(NativeTarget::Block {
+            pos: hit.pos,
+            face: hit.face,
+            block: s.name.clone(),
+            properties: s.properties.clone().into_iter().collect(),
         })
     }
     /// The frame counter: frames in the last second, the slowest frame and

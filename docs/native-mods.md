@@ -39,6 +39,10 @@ the game's items and recipes (`native_recipes`, `native_known_recipes`, `native_
 recipe viewer needs, in builds with or without the `mods` feature. A WebAssembly mod's panel shows only while no native
 mod shows one.
 
+API 3 adds what the crosshair is on (`native_target`): a block with its name and state's properties and the face
+hit, or an entity in front of any block with its id and, for a mob, its type, custom name and health. What a block or
+entity info tooltip needs, without reading the game's internals.
+
 ## What the launcher does
 
 In the window: install a native mod from the Mods page. The first one shows a notice once (the first build downloads
