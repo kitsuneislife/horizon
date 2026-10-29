@@ -798,6 +798,11 @@ impl Game<'_> {
             .and_then(|r| r.menu.as_ref())
             .map_or(0, |m| m.0)
     }
+    /// The open menu's type (`minecraft:generic_9x3`); none for the inventory.
+    pub(super) fn remote_menu_name(&self) -> Option<&str> {
+        let (_, name) = self.remote.as_ref()?.menu.as_ref()?;
+        Some(name).filter(|n| *n != "inventory").map(String::as_str)
+    }
     /// The server's last `n` chat lines, newest first.
     pub(super) fn remote_chat(&self, n: usize) -> Option<Vec<String>> {
         let r = self.remote.as_ref()?;

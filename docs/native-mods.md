@@ -69,6 +69,10 @@ type, position, name (a player's profile name, else a custom name) and health. W
 API 11 adds the player list (`native_players`), the player included, in the server's order: each one's UUID, profile
 name, name as Tab draws it, game mode and latency. What a better tab list or a friends list reads.
 
+API 12 adds the open screen (`native_screen`): Horizon's name for it (`playing`, `inventory`, `chat`...), the server's
+menu type and title (`minecraft:generic_9x3`), and the menu's slots in vanilla's order with damage and durability,
+where Horizon's menu engine models the screen. What an inventory sorter or a chest search reads.
+
 ## What the launcher does
 
 In the window: install a native mod from the Mods page. The first one shows a notice once (the first build downloads

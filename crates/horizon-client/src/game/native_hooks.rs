@@ -39,6 +39,9 @@
 //! API 11 adds the player list (`native_players`): what a better tab list
 //! or a friends list reads.
 //!
+//! API 12 adds the open screen and its menu's slots (`native_screen`): what
+//! an inventory sorter or a chest search reads.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -64,7 +67,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 11;
+pub(crate) const NATIVE_HOOKS_API: u32 = 12;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -158,6 +161,21 @@ pub(crate) struct NativeSlot {
 pub(crate) struct NativeInventory {
     pub(crate) slots: Vec<Option<NativeSlot>>,
     pub(crate) selected: u32,
+}
+
+/// The open screen (`native_screen`). `screen` is Horizon's: `playing`,
+/// `inventory`, `chat`, `paused`, `creative`... `menu` is the server's menu
+/// type (`minecraft:generic_9x3`), none for the player's own inventory or
+/// off a server. `slots` are the menu's in vanilla's order (the container's,
+/// then the inventory's 27, then the hotbar), empty where Horizon's menu
+/// engine doesn't model the screen.
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct NativeScreen {
+    pub(crate) screen: &'static str,
+    pub(crate) menu: Option<String>,
+    pub(crate) title: Option<String>,
+    pub(crate) slots: Vec<Option<NativeSlot>>,
 }
 
 /// An effect on the player (`native_effects`): `minecraft:speed`, its
@@ -608,27 +626,71 @@ impl Game<'_> {
     /// The player's inventory, in a world.
     pub(super) fn native_inventory(&self) -> Option<NativeInventory> {
         self.player.as_ref()?;
-        let items = self.res.items();
-        let slot = |s: &Option<ItemStack>| {
-            s.as_ref().map(|s| NativeSlot {
-                stack: NativeStack {
-                    item: s.item.to_string(),
-                    count: s.count,
-                    components: super::native_recipes::components(s),
-                },
-                damage: s.damage,
-                max_damage: if horizon_client::stations::is_damageable(items, s) {
-                    items.get(&s.item).map_or(0, |i| i.max_damage)
-                } else {
-                    0
-                },
-            })
-        };
+        let slot = |s: &Option<ItemStack>| s.as_ref().map(|s| self.native_slot(s));
         let armor = self.armor.iter().rev();
         let all = self.inventory.iter().chain(armor).chain([&self.offhand]);
         Some(NativeInventory {
             slots: all.map(slot).collect(),
             selected: self.selected as u32,
+        })
+    }
+    /// A stack with its damage out of its item's durability.
+    fn native_slot(&self, s: &ItemStack) -> NativeSlot {
+        let items = self.res.items();
+        NativeSlot {
+            stack: NativeStack {
+                item: s.item.to_string(),
+                count: s.count,
+                components: super::native_recipes::components(s),
+            },
+            damage: s.damage,
+            max_damage: if horizon_client::stations::is_damageable(items, s) {
+                items.get(&s.item).map_or(0, |i| i.max_damage)
+            } else {
+                0
+            },
+        }
+    }
+    /// The open screen, in a world: its name, the server's menu and title,
+    /// and the menu's slots when it is one Horizon's menu engine models.
+    pub(super) fn native_screen(&mut self) -> Option<NativeScreen> {
+        self.player.as_ref()?;
+        let screen = match self.screen {
+            Screen::Playing => "playing",
+            Screen::GameModeSwitcher => "game_mode_switcher",
+            Screen::Paused => "paused",
+            Screen::Options => "options",
+            Screen::Chat => "chat",
+            Screen::Creative => "creative",
+            Screen::Inventory => "inventory",
+            Screen::Dead => "dead",
+            Screen::Stats => "stats",
+            Screen::Advancements => "advancements",
+            Screen::WorldOptions => "world_options",
+            Screen::Friends => "friends",
+            Screen::CommandBlock => "command_block",
+            Screen::ServerLinks => "server_links",
+            Screen::ConfirmLink => "confirm_link",
+            Screen::DialogWarning => "dialog_warning",
+            Screen::Win => "win",
+            Screen::Mod => "mod",
+        };
+        let mut stacks = Vec::new();
+        self.menu_session(|m, _, _| {
+            stacks = (0..m.slot_count()).map(|i| m.slot(i).cloned()).collect();
+            Some(false)
+        });
+        let slots = stacks
+            .iter()
+            .map(|s| s.as_ref().map(|s| self.native_slot(s)))
+            .collect();
+        let menu = self.remote_menu_name().map(str::to_owned);
+        let title = self.remote.as_ref().and_then(|r| r.menu_title.as_ref());
+        Some(NativeScreen {
+            screen,
+            title: menu.as_ref().and(title).map(Text::plain),
+            menu,
+            slots,
         })
     }
     /// The effects on the player, in a world; none when it has none.
