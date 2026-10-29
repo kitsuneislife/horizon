@@ -118,6 +118,11 @@ toasts for the Notification Time option's 5 seconds, waiting its turn for a free
 API 24 adds the helper `native_play_sound` (play a sound event around the listener at a volume and pitch, heard by
 this player only, not by the server or LAN guests). What an alert needs.
 
+API 25 adds the hook `native_world_render` (each frame the world is drawn, add lines in world coordinates to a
+`Gizmos`: `line`, `cuboid` and `arrow`, depth tested or `on_top` through blocks, drawn like the F3+B and F3+G debug
+lines; given the frame's progress into the tick). Lines only: no filled faces or text in the world. What waypoint
+beams, chunk borders or a light level overlay need.
+
 ## What the launcher does
 
 In the window: install a native mod from the Mods page. The first one shows a notice once (the first build downloads

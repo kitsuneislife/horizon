@@ -11982,6 +11982,9 @@ impl Game<'_> {
             lines.extend(g.lines);
             on_top = g.on_top;
         }
+        let g = self.native_world_gizmos(alpha as f32);
+        lines.extend(g.lines);
+        on_top.extend(g.on_top);
         let view = horizon_client::camera::view_matrix(view_yaw, view_pitch);
         let at = camera.to_array();
         // GameRenderer.render3dHud: the debug crosshair, first person with the HUD shown.

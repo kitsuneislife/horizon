@@ -83,6 +83,10 @@
 //! API 24 adds the helper `native_play_sound`, to play a sound only this
 //! player hears: what an alert needs.
 //!
+//! API 25 adds the hook `native_world_render`, to draw lines in the world
+//! as the debug renderers do: what waypoint beams, chunk borders or a light
+//! level overlay need.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -98,6 +102,7 @@ use horizon_client::{
     chat::ChatSource,
     extras::Corner,
     extras_hud::Corners,
+    gizmos::Gizmos,
     hud::{HudBatch, rgba},
     hud_overlays,
     items::ItemStack,
@@ -114,7 +119,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 24;
+pub(crate) const NATIVE_HOOKS_API: u32 = 25;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -646,6 +651,14 @@ impl Game<'_> {
     /// API 20.
     pub(super) fn native_sound(&mut self, id: &str, pos: Option<[f64; 3]>, volume: f32) {
         let _ = (id, pos, volume);
+    }
+    /// The world is drawn this frame: add lines in world coordinates to
+    /// `gizmos` (`line`, `cuboid`, `arrow`; `on_top` ones show through
+    /// blocks), drawn with the debug lines, F1 or not. `alpha` is the
+    /// frame's progress into the tick, to place lines on moving entities.
+    /// API 25.
+    pub(super) fn native_world_render(&mut self, gizmos: &mut Gizmos, alpha: f32) {
+        let _ = (gizmos, alpha);
     }
 }
 
@@ -1329,6 +1342,12 @@ impl Game<'_> {
         self.native_toasts.retain_mut(|toast| {
             !system_toast_frame(toast, &mut used, multiplier, audio, atlas, batch, hidden)
         });
+    }
+    /// The native mods' world lines for this frame.
+    pub(super) fn native_world_gizmos(&mut self, alpha: f32) -> Gizmos {
+        let mut gizmos = Gizmos::default();
+        self.native_world_render(&mut gizmos, alpha);
+        gizmos
     }
     /// Tells `native_sound` the sounds started since the last frame; the
     /// first call starts keeping them.
