@@ -99,7 +99,11 @@ its tooltip is not asked. What a food, stats or durability tooltip needs.
 API 19 adds the hooks `native_attack` and `native_use` (the player pressed attack or use while playing, given what
 the crosshair is on as `native_target` gives it, before the game acts; holding the button is not told again) and
 `native_break` (the player broke a block, by position and name, as the window sees it go: on a server, before the
-server confirms). They only tell. What an auto tool, a combat HUD or a mining counter starts on.
+server confirms; once, though single player's server thread breaks it too). They only tell. What an auto tool, a
+combat HUD or a mining counter starts on.
+
+Every event hook is told only in the window's `Game`: never on single player's server thread, a dedicated server or
+while the host acts for a LAN guest.
 
 API 20 adds the hook `native_sound` (each sound event that started since the last frame, with its position, none for
 one played around the listener, and its volume; muted sounds are not told) and the helper `native_sound_volume` (scale

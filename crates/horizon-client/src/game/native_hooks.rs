@@ -679,9 +679,10 @@ impl Game<'_> {
             && self.sign_edit.is_none()
             && self.book.is_none()
     }
-    /// This `Game` is the window's, not a server's.
+    /// This `Game` is the window's, not a server's, and is not acting for a
+    /// LAN guest (`as_guest`): what happens now is the player's own.
     pub(super) fn native_window(&self) -> bool {
-        self.options.execution_role == ExecutionRole::Client
+        self.options.execution_role == ExecutionRole::Client && self.lan_acting.is_none()
     }
     /// Whether a box in `corner` shows: F3's debug screen takes both top
     /// corners (its left and right columns), and a bottom corner while one
@@ -1294,13 +1295,17 @@ impl Game<'_> {
     /// A chat line arrived: whether a native mod hides it.
     pub(super) fn native_chat_hidden(&mut self, text: &str) -> bool {
         let mut hide = false;
-        self.native_chat_received(text, &mut hide);
+        if self.native_window() {
+            self.native_chat_received(text, &mut hide);
+        }
         hide
     }
     /// The player sends a chat line: whether a native mod cancelled it.
     pub(super) fn native_chat_cancelled(&mut self, text: &str) -> bool {
         let mut cancel = false;
-        self.native_chat_send(text, &mut cancel);
+        if self.native_window() {
+            self.native_chat_send(text, &mut cancel);
+        }
         cancel
     }
     /// The lines native mods add under `stack`'s tooltip.
@@ -1326,8 +1331,13 @@ impl Game<'_> {
             self.native_use(target.as_ref());
         }
     }
-    /// The player broke `state` at `pos`, before the world loses it.
+    /// The player broke `state` at `pos`, before the world loses it. Single
+    /// player's server thread breaks it again for the window's player: only
+    /// the window's break is told.
     pub(super) fn native_broke(&mut self, pos: [i32; 3], state: BlockStateId) {
+        if !self.native_window() {
+            return;
+        }
         if let Some(s) = self.pack.assets.registry.state(state) {
             let block = s.name.clone();
             self.native_break(pos, &block);
@@ -1360,7 +1370,9 @@ impl Game<'_> {
     /// A client mod's command: a native mod's first, then a WebAssembly mod's.
     pub(super) fn client_mod_command(&mut self, command: &str) -> bool {
         let mut ran = false;
-        self.native_command(command, &mut ran);
+        if self.native_window() {
+            self.native_command(command, &mut ran);
+        }
         ran || self.mod_command(command)
     }
     /// The zoom in effect while playing (a native mod's); the spyglass's own
