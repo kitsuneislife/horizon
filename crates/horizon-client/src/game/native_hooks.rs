@@ -18,6 +18,9 @@
 //! API 4 adds any loaded block (`native_block`): its name, state and light,
 //! what a light level overlay or a world map reads.
 //!
+//! API 5 adds the player's inventory (`native_inventory`): what an armour
+//! HUD or a durability warning reads.
+//!
 //! Names, parameters and call sites are kept from release to release, and
 //! hook points are only ever added: each addition raises [`NATIVE_HOOKS_API`].
 //! A bundle that hooks only these names the API it needs (`hooks`), and the
@@ -31,6 +34,7 @@ use horizon_client::{
     extras::Corner,
     extras_hud::Corners,
     hud::{HudBatch, rgba},
+    items::ItemStack,
     keybinds,
     mod_list::{self, Installed, NativePage},
     text::Text,
@@ -41,7 +45,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 /// The hook points' API version. The launcher reads this line from the
 /// source it builds; keep its form.
 #[allow(dead_code)]
-pub(crate) const NATIVE_HOOKS_API: u32 = 4;
+pub(crate) const NATIVE_HOOKS_API: u32 = 5;
 
 /// The zoom a native mod asks for (`native_zoom`): the factor (1 is none),
 /// eased through the field of view like the spyglass when `smooth`, and the
@@ -114,6 +118,27 @@ pub(crate) struct NativeBlock {
     pub(crate) properties: Vec<(String, String)>,
     pub(crate) block_light: u8,
     pub(crate) sky_light: u8,
+}
+
+/// A stack of the player's inventory (`native_inventory`), with its damage
+/// out of its item's durability; `max_damage` is 0 for a stack that never
+/// breaks (no durability, or unbreakable).
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct NativeSlot {
+    pub(crate) stack: NativeStack,
+    pub(crate) damage: u32,
+    pub(crate) max_damage: u32,
+}
+
+/// The player's inventory (`native_inventory`), by vanilla's `Inventory`
+/// slots: 0 to 8 the hotbar, 9 to 35 the rest, 36 to 39 the armour from
+/// feet to head, 40 the off hand; `selected` is the hotbar slot in hand.
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct NativeInventory {
+    pub(crate) slots: Vec<Option<NativeSlot>>,
+    pub(crate) selected: u32,
 }
 
 /// A native mod as Options > Mods lists it (`native_mods`).
@@ -466,6 +491,32 @@ impl Game<'_> {
             properties: s.properties.clone().into_iter().collect(),
             block_light: light & 15,
             sky_light: light >> 4,
+        })
+    }
+    /// The player's inventory, in a world.
+    pub(super) fn native_inventory(&self) -> Option<NativeInventory> {
+        self.player.as_ref()?;
+        let items = self.res.items();
+        let slot = |s: &Option<ItemStack>| {
+            s.as_ref().map(|s| NativeSlot {
+                stack: NativeStack {
+                    item: s.item.to_string(),
+                    count: s.count,
+                    components: super::native_recipes::components(s),
+                },
+                damage: s.damage,
+                max_damage: if horizon_client::stations::is_damageable(items, s) {
+                    items.get(&s.item).map_or(0, |i| i.max_damage)
+                } else {
+                    0
+                },
+            })
+        };
+        let armor = self.armor.iter().rev();
+        let all = self.inventory.iter().chain(armor).chain([&self.offhand]);
+        Some(NativeInventory {
+            slots: all.map(slot).collect(),
+            selected: self.selected as u32,
         })
     }
     /// The frame counter: frames in the last second, the slowest frame and

@@ -46,6 +46,10 @@ entity info tooltip needs, without reading the game's internals.
 API 4 adds any block of a loaded chunk (`native_block`): its name, its state's properties and its block and sky
 light. What a light level overlay, a world map or a block scanner reads; none where the chunk isn't loaded.
 
+API 5 adds the player's inventory (`native_inventory`): every stack by vanilla's `Inventory` slots (hotbar, the
+rest, armour from feet to head, off hand) with its damage and durability, and the hotbar slot in hand. What an
+armour HUD or a durability warning reads.
+
 ## What the launcher does
 
 In the window: install a native mod from the Mods page. The first one shows a notice once (the first build downloads
